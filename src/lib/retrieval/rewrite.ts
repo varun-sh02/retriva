@@ -7,6 +7,8 @@ export type HistoryTurn = { role: "user" | "assistant"; content: string };
 const PRONOUN_PATTERN =
   /\b(it|this|that|these|those|they|them|he|she|him|her|then|there|its)\b/i;
 const REWRITE_HISTORY_TURNS = 4;
+/** Above this, a message is treated as a self-contained brief — see needsRewrite. */
+const MAX_REWRITE_INPUT_CHARS = 600;
 
 /**
  * A pronoun-laden follow-up ("when was that decided?") embeds to nothing
@@ -43,6 +45,19 @@ export async function rewriteQuery(message: string, history: HistoryTurn[]): Pro
 }
 
 function needsRewrite(message: string): boolean {
+  // A pasted brief — a job description, a capability list, a requirements
+  // excerpt — is self-contained by construction and must never be rewritten.
+  // It would otherwise qualify on the pronoun test alone ("in this role…"),
+  // and the 100-token budget above truncates the result mid-sentence: a
+  // 2,559-char JD came back as 459 chars with finishReason MAX_TOKENS,
+  // losing the entire required-skills section. That truncated string is what
+  // gets embedded AND what the model is shown as the question, so the damage
+  // is total. Pronoun de-referencing only ever earned its keep on short
+  // follow-ups, which is exactly what this ceiling preserves.
+  if (message.length > MAX_REWRITE_INPUT_CHARS) {
+    return false;
+  }
+
   const wordCount = message.trim().split(/\s+/).length;
   const isLongAndSelfContained = wordCount > 15 && !PRONOUN_PATTERN.test(message);
   return !isLongAndSelfContained;

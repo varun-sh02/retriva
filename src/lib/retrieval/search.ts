@@ -62,20 +62,25 @@ export async function retrieveChunks(
     return [];
   }
 
-  const { data: chunkRows, error: chunksError } = await supabase
-    .from("chunks")
-    .select("id, document_id, content, content_type, page_number, start_timestamp, end_timestamp, section_path")
-    .in(
-      "id",
-      capped.map((p) => p.chunkId),
-    );
-  if (chunksError) throw chunksError;
-
+  // Both lookups key off `capped` alone — neither needs the other's result —
+  // so they run concurrently. Sequentially they cost two Supabase round trips
+  // on the critical path before the model can start generating, which is dead
+  // air the user watches a spinner through.
   const documentIds = [...new Set(capped.map((p) => p.documentId))];
-  const { data: documentRows, error: documentsError } = await supabase
-    .from("documents")
-    .select("id, name")
-    .in("id", documentIds);
+  const [
+    { data: chunkRows, error: chunksError },
+    { data: documentRows, error: documentsError },
+  ] = await Promise.all([
+    supabase
+      .from("chunks")
+      .select("id, document_id, content, content_type, page_number, start_timestamp, end_timestamp, section_path")
+      .in(
+        "id",
+        capped.map((p) => p.chunkId),
+      ),
+    supabase.from("documents").select("id, name").in("id", documentIds),
+  ]);
+  if (chunksError) throw chunksError;
   if (documentsError) throw documentsError;
 
   const chunkById = new Map((chunkRows ?? []).map((row) => [row.id, row]));

@@ -2,13 +2,11 @@
 
 import { ArrowUp } from "lucide-react";
 import { useState } from "react";
-import type { ChatCitation, ChatMessage } from "@/hooks/useChatStream";
+import type { ChatMessage } from "@/hooks/useChatStream";
 import { useChatStream } from "@/hooks/useChatStream";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { EvidenceDrawer } from "./EvidenceDrawer";
+import { MAX_MESSAGE_LENGTH } from "@/lib/validation/chat";
 import { MessageList } from "./MessageList";
 
 export function ChatShell({
@@ -26,10 +24,8 @@ export function ChatShell({
     initialMessages,
   });
   const [input, setInput] = useState("");
-  const [openCitation, setOpenCitation] = useState<ChatCitation | null>(null);
-  // Off by default (docs/rag-pipeline.md §34 / TASK-068) — never affects
-  // the default UI's visual density until a user opts in.
-  const [showEvidence, setShowEvidence] = useState(false);
+
+  const showCounter = input.length > MAX_MESSAGE_LENGTH * 0.8;
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -40,47 +36,44 @@ export function ChatShell({
 
   return (
     <div className="flex h-full flex-col">
-      {messages.length > 0 && (
-        <div className="flex items-center justify-end gap-2 border-b px-4 py-2">
-          <Label htmlFor="show-evidence" className="text-xs text-muted-foreground">
-            Show evidence
-          </Label>
-          <Switch id="show-evidence" checked={showEvidence} onCheckedChange={setShowEvidence} />
-        </div>
-      )}
-
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
             <p className="text-sm font-medium">Ask anything about this knowledge base.</p>
             <p className="max-w-sm text-xs text-muted-foreground">
-              Answers are grounded in your uploaded documents, with citations you can inspect.
+              Answers are grounded in your uploaded documents.
             </p>
           </div>
         ) : (
-          <MessageList
-            messages={messages}
-            phase={phase}
-            onOpenCitation={setOpenCitation}
-            showEvidence={showEvidence}
-          />
+          <MessageList messages={messages} phase={phase} />
         )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t p-3">
-        <Textarea
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              handleSubmit(event);
-            }
-          }}
-          placeholder="Ask a question…"
-          rows={1}
-          className="max-h-32 min-h-9 resize-none"
-        />
+        <div className="flex-1">
+          <Textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                handleSubmit(event);
+              }
+            }}
+            placeholder="Ask a question…"
+            rows={1}
+            maxLength={MAX_MESSAGE_LENGTH}
+            aria-describedby={showCounter ? "message-length" : undefined}
+            className="max-h-32 min-h-9 w-full resize-none"
+          />
+          {/* Only near the ceiling — a counter on every short question is
+              noise, but pasting a long brief should show the budget. */}
+          {showCounter && (
+            <p id="message-length" className="mt-1 text-right text-xs text-muted-foreground">
+              {input.length.toLocaleString()} / {MAX_MESSAGE_LENGTH.toLocaleString()}
+            </p>
+          )}
+        </div>
         <Button
           type="submit"
           size="icon"
@@ -91,7 +84,6 @@ export function ChatShell({
         </Button>
       </form>
 
-      <EvidenceDrawer citation={openCitation} onClose={() => setOpenCitation(null)} />
     </div>
   );
 }
