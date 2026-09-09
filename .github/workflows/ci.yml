@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      # Build first: it generates .next/types (route param/layout types),
+      # which a fresh checkout's standalone `tsc --noEmit` needs and won't
+      # have yet. `next build` also runs its own full type-check, so this
+      # ordering means a type error is caught here even before the
+      # redundant explicit typecheck step below.
+      - run: npm run build
+      - run: npm run typecheck
