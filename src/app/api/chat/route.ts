@@ -19,6 +19,21 @@ function sseEvent(event: string, data: unknown): Uint8Array {
   return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+// Node's fetch (undici) wraps network failures in a TypeError whose
+// .message is just "fetch failed" — the actionable detail (DNS failure,
+// connect timeout, socket reset) lives on .cause. Walk the chain so logs
+// show the real reason instead of the generic wrapper text.
+function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const parts = [error.message];
+  let cause = error.cause;
+  while (cause) {
+    parts.push(cause instanceof Error ? cause.message : String(cause));
+    cause = cause instanceof Error ? cause.cause : undefined;
+  }
+  return parts.join(" <- caused by: ");
+}
+
 export async function POST(request: Request) {
   return handleRoute(async () => {
     const { workspaceId, supabase } = await requireSession();
@@ -187,7 +202,7 @@ function buildChatStream(params: {
         // has been emitted, retrying would duplicate or garble what the
         // user already sees, so a failure past that point still falls
         // through to the outer catch instead.
-        const MAX_STREAM_ATTEMPTS = 3;
+        const MAX_STREAM_ATTEMPTS = 4;
         let fullText = "";
 
         for (let attempt = 0; attempt < MAX_STREAM_ATTEMPTS; attempt++) {
@@ -214,10 +229,19 @@ function buildChatStream(params: {
             if (fullText.length > 0 || isLastAttempt) {
               throw streamError;
             }
+            // withRetry() above only retries ApiError instances with a
+            // retryable status — a raw network-level failure (e.g. Node
+            // undici's "fetch failed", which wraps the real cause in
+            // `.cause` rather than `.message`) is NOT retried by withRetry
+            // and throws on its first attempt, landing here immediately.
+            // Log the cause chain so a future occurrence is diagnosable
+            // instead of showing up only as the opaque top-level message.
             console.warn(
-              `Chat generation attempt ${attempt + 1} failed before any output, retrying:`,
-              streamError instanceof Error ? streamError.message : streamError,
+              `Chat generation attempt ${attempt + 1}/${MAX_STREAM_ATTEMPTS} failed before any output, retrying:`,
+              describeError(streamError),
             );
+            const backoffMs = 300 * (attempt + 1);
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
           }
         }
 
@@ -241,14 +265,13 @@ function buildChatStream(params: {
         }
         controller.close();
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Generation failed";
         controller.enqueue(
           sseEvent("error", {
             code: "GENERATION_FAILED",
             message: "The response was cut short. Try asking again.",
           }),
         );
-        console.error("Chat stream error:", message);
+        console.error("Chat stream error:", describeError(error));
         controller.close();
       }
     },
