@@ -38,8 +38,19 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname, origin } = request.nextUrl;
+  // /embed/<token> is the widget iframe: authenticated by an unguessable
+  // share token, never by a session. Without this it would be redirected to
+  // /sign-in and the widget would render a login page inside the frame.
   const isPublicPath =
-    pathname === "/sign-in" || pathname === "/auth/callback" || pathname === "/auth/sign-out";
+    pathname === "/sign-in" ||
+    pathname === "/auth/callback" ||
+    pathname === "/auth/sign-out" ||
+    pathname.startsWith("/embed/") ||
+    // The widget loader is fetched by anonymous browsers on third-party
+    // sites. The matcher below excludes _next/static and images but not a
+    // plain .js file at the root, so without this it is redirected to
+    // /sign-in and every embed silently fails to load.
+    pathname === "/widget.js";
   // API routes own their own 401 JSON via requireSession() (docs/api-contracts.md
   // §1) — redirecting them to /sign-in here would turn an unauthenticated
   // fetch into a 307 to an HTML page instead of the documented error envelope.

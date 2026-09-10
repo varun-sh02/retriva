@@ -6,10 +6,15 @@ export async function getMostRecentConversation(
   supabase: SupabaseClient,
   knowledgeBaseId: string,
 ): Promise<{ id: string } | null> {
+  // is("visitor_id", null) is load-bearing: widget visitors' conversations
+  // live in this same table, scoped to the same knowledge base. Without this
+  // the owner opening their own chat would resume whichever anonymous
+  // visitor happened to ask a question most recently.
   const { data, error } = await supabase
     .from("conversations")
     .select("id")
     .eq("knowledge_base_id", knowledgeBaseId)
+    .is("visitor_id", null)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();

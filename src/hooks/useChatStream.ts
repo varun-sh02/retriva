@@ -45,10 +45,19 @@ export type ChatPhase = "idle" | "searching" | "synthesizing";
  * chunk boundaries, which the buffer-and-keep-remainder logic below covers.
  */
 export function useChatStream(params: {
-  knowledgeBaseId: string;
+  /**
+   * Which chat endpoint to post to, and the fields that identify the
+   * knowledge base to it. The authenticated app sends a knowledgeBaseId and
+   * relies on its session; the public widget sends a share token and a
+   * visitor id instead. Everything downstream — SSE framing, delta
+   * smoothing, citations — is identical, so it lives here once.
+   */
+  endpoint?: string;
+  requestFields: Record<string, string | undefined>;
   initialConversationId?: string;
   initialMessages?: ChatMessage[];
 }) {
+  const endpoint = params.endpoint ?? "/api/chat";
   const [conversationId, setConversationId] = useState(params.initialConversationId);
   const [messages, setMessages] = useState<ChatMessage[]>(params.initialMessages ?? []);
   const [phase, setPhase] = useState<ChatPhase>("idle");
@@ -164,10 +173,10 @@ export function useChatStream(params: {
     abortRef.current = controller;
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ knowledgeBaseId: params.knowledgeBaseId, conversationId, message: trimmed }),
+        body: JSON.stringify({ ...params.requestFields, conversationId, message: trimmed }),
         signal: controller.signal,
       });
 

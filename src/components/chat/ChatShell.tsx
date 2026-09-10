@@ -19,7 +19,7 @@ export function ChatShell({
   initialMessages?: ChatMessage[];
 }) {
   const { messages, phase, sendMessage } = useChatStream({
-    knowledgeBaseId,
+    requestFields: { knowledgeBaseId },
     initialConversationId,
     initialMessages,
   });
