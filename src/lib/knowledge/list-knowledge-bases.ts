@@ -28,32 +28,33 @@ export async function listKnowledgeBases(
   supabase: SupabaseClient,
   workspaceId: string,
 ): Promise<KnowledgeBaseSummary[]> {
-  const { data, error } = await supabase
-    .from("knowledge_bases")
-    .select("id, name, description, updated_at")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false });
+  // Run together rather than chained. The stats query used to be filtered by
+  // the ids returned from the first query, which forced a second serial round
+  // trip — and that .in() was already documented as a query optimization
+  // rather than the security boundary. knowledge_base_stats is
+  // security_invoker (supabase/migrations/0004_documents.sql), so RLS still
+  // returns only rows the caller may see with or without the filter.
+  const [{ data, error }, { data: statsRows, error: statsError }] = await Promise.all([
+    supabase
+      .from("knowledge_bases")
+      .select("id, name, description, updated_at")
+      .eq("workspace_id", workspaceId)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("knowledge_base_stats")
+      .select("knowledge_base_id, document_count, ready_count, processing_count, failed_count"),
+  ]);
 
   if (error) {
     throw error;
   }
 
   const knowledgeBases = data ?? [];
+  // Checked before statsError so a workspace with no knowledge bases returns
+  // [] exactly as it did when the stats query was skipped entirely.
   if (knowledgeBases.length === 0) {
     return [];
   }
-
-  // knowledge_base_stats is security_invoker (supabase/migrations/0004_documents.sql),
-  // so this still only returns rows for knowledge bases the caller's RLS
-  // allows through the underlying join — the .in() filter here is a query
-  // optimization, not the security boundary.
-  const { data: statsRows, error: statsError } = await supabase
-    .from("knowledge_base_stats")
-    .select("knowledge_base_id, document_count, ready_count, processing_count, failed_count")
-    .in(
-      "knowledge_base_id",
-      knowledgeBases.map((kb) => kb.id),
-    );
 
   if (statsError) {
     throw statsError;

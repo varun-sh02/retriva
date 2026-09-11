@@ -40,9 +40,19 @@ export default async function KnowledgeBaseLayout({
   const { kbId } = await params;
   const { workspaceId, supabase } = await requireSession();
 
+  // Both started before either is awaited, so they overlap on the wire instead
+  // of costing two serial round trips. The counts view is RLS-scoped, and a
+  // non-owned id still 404s below before anything renders.
+  const knowledgeBasePromise = requireKnowledgeBase(supabase, workspaceId, kbId);
+  const countsPromise = getKnowledgeBaseCounts(supabase, kbId);
+  // Marks the counts promise as handled so the 404 path below — which returns
+  // without awaiting it — cannot raise an unhandled rejection. The original
+  // promise still throws if it is awaited and failed.
+  countsPromise.catch(() => {});
+
   let knowledgeBase;
   try {
-    knowledgeBase = await requireKnowledgeBase(supabase, workspaceId, kbId);
+    knowledgeBase = await knowledgeBasePromise;
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       notFound();
@@ -50,7 +60,7 @@ export default async function KnowledgeBaseLayout({
     throw error;
   }
 
-  const counts = await getKnowledgeBaseCounts(supabase, knowledgeBase.id);
+  const counts = await countsPromise;
 
   return (
     <div className="flex h-full flex-col">

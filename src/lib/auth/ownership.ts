@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notFound } from "@/lib/http/api-error";
 
@@ -19,8 +20,14 @@ export type KnowledgeBaseRow = {
  * The `workspace_id` filter here is explicit, server-side ownership
  * verification independent of RLS (docs/security.md T1) — RLS alone is not
  * treated as the only line of defense.
+ *
+ * Memoized per request for the same reason as requireSession: the knowledge
+ * base layout and the page beneath it both verify the same id, and the answer
+ * cannot change between them. Cache hits depend on the `supabase` argument
+ * being the same reference, which it is because requireSession is itself
+ * memoized and hands back one client per request.
  */
-export async function requireKnowledgeBase(
+export const requireKnowledgeBase = cache(async function requireKnowledgeBase(
   supabase: SupabaseClient,
   workspaceId: string,
   id: string,
@@ -41,7 +48,7 @@ export async function requireKnowledgeBase(
   }
 
   return data;
-}
+});
 
 export type DocumentRow = {
   id: string;
