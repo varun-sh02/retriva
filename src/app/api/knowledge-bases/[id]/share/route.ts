@@ -8,6 +8,9 @@ import { z } from "zod";
 const shareUpdateSchema = z.object({
   enabled: z.boolean(),
   greeting: z.string().max(300).nullish(),
+  description: z.string().max(500).nullish(),
+  /** Rendered as click-to-open-chat chips on the widget's intro card. */
+  suggestedPrompts: z.array(z.string().trim().min(1).max(100)).max(4).optional(),
   /** Invalidates the current link and issues a new one. */
   rotate: z.boolean().optional(),
 });
@@ -53,10 +56,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         public_enabled: parsed.data.enabled,
         public_share_token: token,
         ...(parsed.data.greeting !== undefined ? { public_greeting: parsed.data.greeting } : {}),
+        ...(parsed.data.description !== undefined
+          ? { public_description: parsed.data.description }
+          : {}),
+        ...(parsed.data.suggestedPrompts !== undefined
+          ? { public_suggested_prompts: parsed.data.suggestedPrompts }
+          : {}),
       })
       .eq("id", id)
       .eq("workspace_id", workspaceId)
-      .select("public_enabled, public_share_token, public_greeting")
+      .select(
+        "public_enabled, public_share_token, public_greeting, public_description, public_suggested_prompts",
+      )
       .single();
     if (error) throw error;
 
@@ -64,6 +75,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       enabled: data.public_enabled,
       shareToken: data.public_enabled ? data.public_share_token : null,
       greeting: data.public_greeting,
+      description: data.public_description,
+      suggestedPrompts: data.public_suggested_prompts,
     });
   });
 }

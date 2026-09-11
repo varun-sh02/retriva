@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { useChatStream } from "@/hooks/useChatStream";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MAX_MESSAGE_LENGTH } from "@/lib/validation/chat";
@@ -40,16 +41,37 @@ function readVisitorId(): string | null {
   return id;
 }
 
+// Plain text, not a link: the widget iframe's sandbox (public/widget.js)
+// deliberately withholds allow-popups, so a target="_blank" anchor here would
+// silently fail to open inside an embedded widget anyway.
+function PoweredByRetriva() {
+  return (
+    <p className="border-t py-1.5 text-center text-[11px] text-muted-foreground">
+      Powered by Retriva
+    </p>
+  );
+}
+
 export function PublicChat({
   shareToken,
   name,
   greeting,
+  description,
+  avatarUrl,
+  suggestedPrompts,
 }: {
   shareToken: string;
   name: string;
   greeting: string | null;
+  description: string | null;
+  avatarUrl: string | null;
+  suggestedPrompts: string[];
 }) {
   const [visitorId] = useState(readVisitorId);
+  // A fresh widget open (iframe (re)load) always starts on the intro card —
+  // there is no restore-last-view state across loads, matching how a
+  // visitor's conversation itself isn't restored across a fresh load either.
+  const [view, setView] = useState<"intro" | "chat">("intro");
   const { messages, phase, sendMessage } = useChatStream({
     endpoint: "/api/public/chat",
     requestFields: { shareToken, visitorId: visitorId ?? undefined },
@@ -64,6 +86,52 @@ export function PublicChat({
     if (phase !== "idle" || !visitorId) return;
     void sendMessage(input);
     setInput("");
+  }
+
+  if (view === "intro") {
+    return (
+      <div className="flex h-dvh flex-col bg-background">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-6 text-center">
+          <Avatar size="lg" className="size-20">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+            <AvatarFallback className="text-lg">{name.slice(0, 1).toUpperCase()}</AvatarFallback>
+          </Avatar>
+
+          <div>
+            <p className="text-base font-semibold">{greeting ?? name}</p>
+            {description && (
+              <p className="mt-1 max-w-xs text-sm text-muted-foreground">{description}</p>
+            )}
+          </div>
+
+          {suggestedPrompts.length > 0 && (
+            <div className="mt-2 flex w-full max-w-xs flex-col gap-1.5">
+              {suggestedPrompts.map((prompt, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setView("chat")}
+                  className="rounded-lg border px-3 py-2 text-left text-sm hover:bg-accent"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant={suggestedPrompts.length > 0 ? "ghost" : "default"}
+            className="mt-2 gap-2"
+            onClick={() => setView("chat")}
+          >
+            <MessageCircle className="size-4" />
+            Go to chat
+          </Button>
+        </div>
+        <PoweredByRetriva />
+      </div>
+    );
   }
 
   return (
@@ -116,6 +184,7 @@ export function PublicChat({
           <ArrowUp className="size-4" />
         </Button>
       </form>
+      <PoweredByRetriva />
     </div>
   );
 }

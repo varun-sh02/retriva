@@ -1,7 +1,6 @@
-import { ChatShell } from "@/components/chat/ChatShell";
-import { requireKnowledgeBase } from "@/lib/auth/ownership";
-import { requireSession } from "@/lib/auth/session";
+import { ChatPageLayout } from "@/components/chat/ChatPageLayout";
 import { getMostRecentConversation, listMessages } from "@/lib/chat/list-messages";
+import { loadChatPageContext } from "@/lib/chat/page-context";
 
 export default async function KnowledgeBaseChatPage({
   params,
@@ -9,16 +8,16 @@ export default async function KnowledgeBaseChatPage({
   params: Promise<{ kbId: string }>;
 }) {
   const { kbId } = await params;
-  const { workspaceId, supabase } = await requireSession();
-  const knowledgeBase = await requireKnowledgeBase(supabase, workspaceId, kbId);
+  const { supabase, knowledgeBase, conversations } = await loadChatPageContext(kbId);
 
   const conversation = await getMostRecentConversation(supabase, knowledgeBase.id);
   const initialMessages = conversation ? await listMessages(supabase, conversation.id) : [];
 
   return (
-    <ChatShell
+    <ChatPageLayout
       knowledgeBaseId={knowledgeBase.id}
-      initialConversationId={conversation?.id}
+      conversations={conversations}
+      activeConversationId={conversation?.id}
       initialMessages={initialMessages}
     />
   );

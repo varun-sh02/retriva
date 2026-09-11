@@ -29,5 +29,14 @@ export default async function EmbedPage({ params }: { params: Promise<{ token: s
     throw error;
   }
 
-  return <PublicChat shareToken={token} name={share.name} greeting={share.greeting} />;
+  return (
+    <PublicChat
+      shareToken={token}
+      name={share.name}
+      greeting={share.greeting}
+      description={share.description}
+      avatarUrl={share.avatarUrl}
+      suggestedPrompts={share.suggestedPrompts}
+    />
+  );
 }

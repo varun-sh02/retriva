@@ -33,3 +33,17 @@ export function buildOriginalStoragePath(params: {
 
   return `ws/${params.workspaceId}/kb/${params.knowledgeBaseId}/${params.documentId}/original.${extension}`;
 }
+
+/**
+ * One path per upload (not a fixed "avatar" name) so a re-upload never
+ * fights the previous object's cached response at the same public URL — the
+ * caller deletes the old object after the new one is written. Matches the
+ * same [2]=workspace_id segment convention the "avatars" bucket RLS policies
+ * (0012_widget_customization.sql) expect.
+ */
+export function buildAvatarStoragePath(params: {
+  workspaceId: string;
+  knowledgeBaseId: string;
+}): string {
+  return `ws/${params.workspaceId}/kb/${params.knowledgeBaseId}/avatar-${crypto.randomUUID()}`;
+}

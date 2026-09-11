@@ -22,6 +22,38 @@ export async function getMostRecentConversation(
   return data;
 }
 
+export type ConversationSummary = {
+  id: string;
+  title: string | null;
+  updatedAt: string;
+};
+
+/**
+ * The owner's own conversations for a knowledge base, most recently active
+ * first — backs the chat history list. is("visitor_id", null) excludes
+ * widget visitors' conversations for the same reason as
+ * getMostRecentConversation above.
+ */
+export async function listConversations(
+  supabase: SupabaseClient,
+  knowledgeBaseId: string,
+): Promise<ConversationSummary[]> {
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id, title, updated_at")
+    .eq("knowledge_base_id", knowledgeBaseId)
+    .is("visitor_id", null)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    title: row.title,
+    updatedAt: row.updated_at,
+  }));
+}
+
 export async function listMessages(
   supabase: SupabaseClient,
   conversationId: string,

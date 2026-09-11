@@ -8,11 +8,12 @@ export function KnowledgeBaseNav({ knowledgeBaseId }: { knowledgeBaseId: string 
   const pathname = usePathname();
   const basePath = `/app/knowledge-bases/${knowledgeBaseId}`;
   const chatPath = `${basePath}/chat`;
-  const isChat = pathname.startsWith(chatPath);
+  const widgetPath = `${basePath}/widget`;
 
   const tabs = [
-    { href: basePath, label: "Documents", active: !isChat },
-    { href: chatPath, label: "Chat", active: isChat },
+    { href: basePath, label: "Documents", active: pathname === basePath },
+    { href: chatPath, label: "Chat", active: pathname.startsWith(chatPath) },
+    { href: widgetPath, label: "Widget", active: pathname.startsWith(widgetPath) },
   ];
 
   return (

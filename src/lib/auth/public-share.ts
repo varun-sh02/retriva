@@ -9,6 +9,9 @@ export type PublicShare = {
   knowledgeBaseId: string;
   name: string;
   greeting: string | null;
+  description: string | null;
+  avatarUrl: string | null;
+  suggestedPrompts: string[];
 };
 
 /**
@@ -47,7 +50,9 @@ export async function resolvePublicShare(token: string): Promise<PublicShare> {
   const supabase = createSupabaseServiceClient();
   const { data, error } = await supabase
     .from("knowledge_bases")
-    .select("id, workspace_id, name, public_greeting, public_enabled")
+    .select(
+      "id, workspace_id, name, public_greeting, public_enabled, public_description, public_avatar_path, public_suggested_prompts",
+    )
     .eq("public_share_token", token)
     .maybeSingle();
 
@@ -56,11 +61,17 @@ export async function resolvePublicShare(token: string): Promise<PublicShare> {
     throw notFound("This chat is not available");
   }
 
+  const avatarPath = data.public_avatar_path as string | null;
+  const avatarUrl = avatarPath ? supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl : null;
+
   return {
     workspaceId: data.workspace_id as string,
     knowledgeBaseId: data.id as string,
     name: data.name as string,
     greeting: (data.public_greeting as string | null) ?? null,
+    description: (data.public_description as string | null) ?? null,
+    avatarUrl,
+    suggestedPrompts: (data.public_suggested_prompts as string[] | null) ?? [],
   };
 }
 
