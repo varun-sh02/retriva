@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { ChatMessage, ChatPhase } from "@/hooks/useChatStream";
+import { LogoMark } from "@/components/brand/Logo";
 import { AssistantMessage } from "./AssistantMessage";
 import { UserMessage } from "./UserMessage";
 
@@ -31,8 +32,9 @@ export function MessageList({
         ) : (
           <div
             key={message.id}
-            className="max-w-[85%] animate-in fade-in slide-in-from-bottom-1 duration-300"
+            className="flex max-w-[85%] items-start gap-2 animate-in fade-in slide-in-from-bottom-1 duration-300"
           >
+            <LogoMark size={20} className="mt-0.5 shrink-0" />
             {message.content ? (
               <AssistantMessage content={message.content} />
             ) : message.streaming ? (

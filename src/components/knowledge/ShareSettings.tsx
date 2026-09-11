@@ -4,6 +4,7 @@ import { Check, Copy, Plus, RefreshCw, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -154,61 +155,66 @@ export function ShareSettings({
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Label htmlFor="public-share" className="text-sm font-medium">
-            Embed on your site
-          </Label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Anyone with the link can ask questions about this knowledge base. They cannot see your
-            documents or upload anything.
-          </p>
-        </div>
-        <Switch
-          id="public-share"
-          checked={state.enabled}
-          disabled={busy}
-          onCheckedChange={(enabled) => update({ enabled })}
-        />
-      </div>
-
-      {error && <p className="text-xs text-destructive">{error}</p>}
-
-      {state.enabled && snippet && (
-        <div className="flex flex-col gap-2">
-          <pre className="overflow-x-auto rounded border bg-muted p-2 text-[11px] leading-relaxed">
-            {snippet}
-          </pre>
-          <div className="flex gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={copy} disabled={busy}>
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              {copied ? "Copied" : "Copy snippet"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>
+                <Label htmlFor="public-share">Embed on your site</Label>
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Anyone with the link can ask questions about this knowledge base. They cannot see
+                your documents or upload anything.
+              </CardDescription>
+            </div>
+            <Switch
+              id="public-share"
+              checked={state.enabled}
               disabled={busy}
-              onClick={() => update({ enabled: true, rotate: true })}
-              title="Invalidates the current link and issues a new one"
-            >
-              <RefreshCw className="size-3.5" />
-              Rotate link
-            </Button>
+              onCheckedChange={(enabled) => update({ enabled })}
+            />
           </div>
-        </div>
-      )}
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {error && <p className="text-xs text-destructive">{error}</p>}
 
-      <div className="flex flex-col gap-4 border-t pt-4">
-        <div>
-          <p className="text-sm font-medium">Widget intro card</p>
-          <p className="mt-1 text-xs text-muted-foreground">
+          {state.enabled && snippet && (
+            <div className="flex flex-col gap-2">
+              <pre className="overflow-x-auto rounded border bg-muted p-2 text-[11px] leading-relaxed">
+                {snippet}
+              </pre>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={copy} disabled={busy}>
+                  {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  {copied ? "Copied" : "Copy snippet"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => update({ enabled: true, rotate: true })}
+                  title="Invalidates the current link and issues a new one"
+                >
+                  <RefreshCw className="size-3.5" />
+                  Rotate link
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Widget intro card</CardTitle>
+          <CardDescription>
             Shown to visitors before they reach chat. Changes apply immediately — no re-embedding
             needed.
-          </p>
-        </div>
-
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <Avatar size="lg" className="size-14">
             {state.avatarUrl && <AvatarImage src={state.avatarUrl} alt="Widget avatar" />}
@@ -322,7 +328,8 @@ export function ShareSettings({
         <Button type="button" size="sm" disabled={busy} onClick={saveCustomization} className="w-fit">
           Save
         </Button>
-      </div>
-    </section>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

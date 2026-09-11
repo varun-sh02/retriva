@@ -34,7 +34,7 @@ export function RetrievalTransparency({ sources }: { sources: RetrievedSource[] 
               <span className="tabular-nums">{index + 1}.</span>
               <span className="truncate">{source.documentName}</span>
               {location && <span>· {location}</span>}
-              <span className="ml-auto tabular-nums">similarity {source.score.toFixed(2)}</span>
+              <span className="ml-auto font-mono tabular-nums">similarity {source.score.toFixed(2)}</span>
             </li>
           );
         })}

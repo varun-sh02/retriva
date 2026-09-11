@@ -6,6 +6,7 @@ import { useChatStream } from "@/hooks/useChatStream";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { LogoMark } from "@/components/brand/Logo";
 import { MAX_MESSAGE_LENGTH } from "@/lib/validation/chat";
 import { MessageList } from "./MessageList";
 
@@ -41,14 +42,19 @@ function readVisitorId(): string | null {
   return id;
 }
 
-// Plain text, not a link: the widget iframe's sandbox (public/widget.js)
-// deliberately withholds allow-popups, so a target="_blank" anchor here would
-// silently fail to open inside an embedded widget anyway.
+// target="_blank" only works here because public/widget.js's iframe sandbox
+// grants allow-popups — without it this link would silently fail to open.
 function PoweredByRetriva() {
   return (
-    <p className="border-t py-1.5 text-center text-[11px] text-muted-foreground">
+    <a
+      href="/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-center gap-1 border-t py-1.5 text-center text-[11px] text-muted-foreground hover:text-foreground"
+    >
+      <LogoMark size={12} />
       Powered by Retriva
-    </p>
+    </a>
   );
 }
 

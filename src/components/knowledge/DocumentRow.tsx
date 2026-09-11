@@ -121,7 +121,7 @@ export function DocumentRow({ document }: { document: DocumentSummary }) {
             {document.status === "FAILED" && document.errorMessage
               ? ` · ${document.errorMessage}`
               : document.stage
-                ? ` · ${document.stage.toLowerCase()}`
+                ? <> · <span className="font-mono">{document.stage.toLowerCase()}</span></>
                 : ""}
           </p>
         </div>

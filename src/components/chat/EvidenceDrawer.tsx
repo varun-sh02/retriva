@@ -58,7 +58,7 @@ function EvidenceDrawerContent({ citation }: { citation: ChatCitation }) {
         <p className="text-sm text-muted-foreground">
           This source is no longer available. Here is the excerpt this answer was based on:
         </p>
-        <blockquote className="rounded-md border-l-2 pl-3 text-sm italic">
+        <blockquote className="rounded-md border-l-2 border-brand bg-tint py-2 pl-3 text-sm text-tint-foreground italic">
           {citation.excerpt}
         </blockquote>
       </div>
@@ -70,10 +70,12 @@ function EvidenceDrawerContent({ citation }: { citation: ChatCitation }) {
   return (
     <>
       {detail.pageNumber !== null && (
-        <p className="text-sm text-muted-foreground">Page {detail.pageNumber}</p>
+        <p className="text-sm text-muted-foreground">
+          Page <span className="font-mono">{detail.pageNumber}</span>
+        </p>
       )}
       {detail.startTimestamp !== null && detail.endTimestamp !== null && (
-        <p className="text-sm text-muted-foreground">
+        <p className="font-mono text-sm text-muted-foreground">
           {formatTimestamp(detail.startTimestamp)}–{formatTimestamp(detail.endTimestamp)}
         </p>
       )}
@@ -122,7 +124,7 @@ function EvidenceDrawerContent({ citation }: { citation: ChatCitation }) {
         </div>
       )}
 
-      <blockquote className="rounded-md border-l-2 pl-3 text-sm whitespace-pre-wrap">
+      <blockquote className="rounded-md border-l-2 border-brand bg-tint py-2 pl-3 text-sm whitespace-pre-wrap text-tint-foreground">
         {detail.content}
       </blockquote>
 

@@ -29,7 +29,7 @@
   // that served the loader.
   var origin = new URL(script.src, window.location.href).origin;
   var label = script.getAttribute("data-retriva-label") || "Ask a question";
-  var accent = script.getAttribute("data-retriva-accent") || "#111827";
+  var accent = script.getAttribute("data-retriva-accent") || "#E08A1E";
   var side = script.getAttribute("data-retriva-side") === "left" ? "left" : "right";
 
   if (document.getElementById("retriva-widget-root")) return;
@@ -70,9 +70,11 @@
   // cross-origin (blocked, since that endpoint sends no CORS headers) and
   // makes localStorage throw. It does NOT grant reach into the host page —
   // the frame is cross-origin to it either way, so "same origin" here means
-  // Retriva's origin, not the embedder's. Withholding allow-popups and
-  // allow-top-navigation is what keeps the widget from hijacking the page.
-  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms");
+  // Retriva's origin, not the embedder's. allow-popups only lets the frame's
+  // own links (the "Powered by Retriva" footer) open in a new tab; withholding
+  // allow-top-navigation is what actually keeps the widget from hijacking the
+  // host page.
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups");
 
   var loaded = false;
   function toggle() {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Logo } from "@/components/brand/Logo";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
@@ -64,10 +65,11 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+      <Logo height={32} />
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Retriva</CardTitle>
+          <CardTitle>Sign in</CardTitle>
           <CardDescription>
             {DEV_AUTH_BYPASS
               ? "Local dev: sign in with email + password."

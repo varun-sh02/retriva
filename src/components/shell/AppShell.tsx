@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { CommandMenu } from "./CommandMenu";
 
 export function AppShell({
@@ -30,10 +32,11 @@ export function AppShell({
         >
           <Menu className="size-4" />
         </Button>
-        <span className="font-semibold tracking-tight">Retriva</span>
+        <Logo />
         <span className="ml-auto hidden text-xs text-muted-foreground md:inline">
           <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">⌘K</kbd> to switch
         </span>
+        <ThemeToggle />
       </header>
       <div className="flex flex-1 overflow-hidden">
         <aside className="hidden w-64 shrink-0 flex-col border-r md:flex">{sidebar}</aside>

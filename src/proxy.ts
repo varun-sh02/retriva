@@ -42,6 +42,7 @@ export async function proxy(request: NextRequest) {
   // share token, never by a session. Without this it would be redirected to
   // /sign-in and the widget would render a login page inside the frame.
   const isPublicPath =
+    pathname === "/" ||
     pathname === "/sign-in" ||
     pathname === "/auth/callback" ||
     pathname === "/auth/sign-out" ||
@@ -68,5 +69,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm)$).*)"],
 };

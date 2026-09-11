@@ -22,7 +22,7 @@ export function CitationBadge({
     <button
       type="button"
       onClick={() => onOpen(citation)}
-      className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/10 px-1 text-[0.65rem] font-medium text-primary align-text-top hover:bg-primary/20"
+      className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand/15 px-1 text-[0.65rem] font-medium text-brand-text align-text-top hover:bg-brand/25"
     >
       {sourceId.replace("SOURCE_", "")}
     </button>

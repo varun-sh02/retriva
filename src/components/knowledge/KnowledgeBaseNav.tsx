@@ -23,9 +23,9 @@ export function KnowledgeBaseNav({ knowledgeBaseId }: { knowledgeBaseId: string 
           key={tab.href}
           href={tab.href}
           className={cn(
-            "border-b-2 py-2 text-sm font-medium",
+            "border-b-2 py-2 text-sm font-medium transition-colors",
             tab.active
-              ? "border-foreground text-foreground"
+              ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground",
           )}
         >

@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, MessagesSquare } from "lucide-react";
 import { useState } from "react";
 import type { ChatMessage } from "@/hooks/useChatStream";
 import { useChatStream } from "@/hooks/useChatStream";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState } from "@/components/shell/EmptyState";
 import { MAX_MESSAGE_LENGTH } from "@/lib/validation/chat";
 import { MessageList } from "./MessageList";
 
@@ -38,12 +39,11 @@ export function ChatShell({
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-            <p className="text-sm font-medium">Ask anything about this knowledge base.</p>
-            <p className="max-w-sm text-xs text-muted-foreground">
-              Answers are grounded in your uploaded documents.
-            </p>
-          </div>
+          <EmptyState
+            icon={MessagesSquare}
+            title="Ask anything about this knowledge base"
+            description="Answers are grounded in your uploaded documents."
+          />
         ) : (
           <MessageList messages={messages} phase={phase} />
         )}
