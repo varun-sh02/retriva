@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowUp, MessageCircle, Square } from "lucide-react";
-import { useCallback, useState } from "react";
+import { ArrowUp, MessageCircle, Square, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ChatCitation } from "@/hooks/useChatStream";
 import { useChatStream } from "@/hooks/useChatStream";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,6 +42,58 @@ function readVisitorId(): string | null {
     // Not fatal: the id still works for this page's lifetime.
   }
   return id;
+}
+
+/**
+ * Whether this page is running inside the widget iframe rather than being
+ * opened directly.
+ *
+ * useSyncExternalStore, not an effect: the value is read from outside React,
+ * differs between the server snapshot and the client, and never changes
+ * afterwards — hence the no-op subscribe. An effect writing state here would
+ * be a cascading render for a constant.
+ */
+const NEVER_CHANGES = () => () => {};
+
+function useIsEmbedded(): boolean {
+  return useSyncExternalStore(
+    NEVER_CHANGES,
+    () => window.self !== window.top,
+    () => false,
+  );
+}
+
+/**
+ * Asks the host page's widget loader to close the panel.
+ *
+ * The iframe cannot close itself — only public/widget.js can hide it — so the
+ * close control has to cross the frame boundary. targetOrigin is "*" because
+ * the embedder's origin is unknown by design (any site may embed), which is
+ * safe here only because the message carries no data: it is a bare signal,
+ * and widget.js verifies the sender's origin before acting on it.
+ */
+function requestClose() {
+  try {
+    window.parent.postMessage({ type: "retriva:close" }, "*");
+  } catch {
+    // A parent that refuses the message leaves the panel open — the host
+    // page's own launcher is still there on desktop.
+  }
+}
+
+function CloseButton({ className }: { className?: string }) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Close chat"
+      className={className}
+      onClick={requestClose}
+    >
+      <X className="size-4" />
+    </Button>
+  );
 }
 
 // target="_blank" only works here because public/widget.js's iframe sandbox
@@ -86,6 +138,8 @@ export function PublicChat({
   });
   const [input, setInput] = useState("");
   const [openCitation, setOpenCitation] = useState<ChatCitation | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const embedded = useIsEmbedded();
   const showCounter = input.length > MAX_MESSAGE_LENGTH * 0.8;
   const streaming = phase !== "idle" || messages[messages.length - 1]?.streaming === true;
 
@@ -109,10 +163,32 @@ export function PublicChat({
       message.citations.some((citation) => citation.chunkId === openCitation?.chunkId),
     )?.citations ?? [];
 
+  // Moving to chat hands focus to the composer, so a prefilled prompt can be
+  // sent or edited without reaching for the mouse first.
+  useEffect(() => {
+    if (view === "chat") composerRef.current?.focus();
+  }, [view]);
+
+  // Escape is handled here as well as in widget.js: once focus is inside the
+  // iframe the host page never sees the keystroke, so the loader's own
+  // listener cannot fire.
+  useEffect(() => {
+    if (!embedded) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") requestClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [embedded]);
+
+  /**
+   * A quick action opens the chat with the question ready to send — it does
+   * not send it. Firing a request on a single tap commits the visitor to a
+   * question they may only have been reading, and gives them nothing to edit.
+   */
   function ask(question: string) {
-    if (!visitorId) return;
+    setInput(question);
     setView("chat");
-    void sendMessage(question);
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -126,47 +202,71 @@ export function PublicChat({
 
   if (view === "intro") {
     return (
-      <div className="flex h-dvh flex-col bg-background">
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-6 text-center">
-          <Avatar size="lg" className="size-20">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-            <AvatarFallback className="text-lg">{name.slice(0, 1).toUpperCase()}</AvatarFallback>
-          </Avatar>
+      <div className="relative flex h-dvh flex-col bg-background">
+        {embedded && <CloseButton className="absolute top-2 right-2 z-10" />}
 
-          <div>
-            <p className="text-base font-semibold">{greeting ?? name}</p>
-            {description && (
-              <p className="mt-1 max-w-xs text-sm text-muted-foreground">{description}</p>
-            )}
-          </div>
+        {/*
+          m-auto on the child rather than items-center on the parent: with a
+          scrolling flex container, align-items:center clips the TOP of content
+          taller than the box and makes it unreachable, while auto margins
+          collapse correctly and stay scrollable. That case is real here — a
+          long greeting plus four prompts overflows a 600px widget frame.
+        */}
+        <div className="flex flex-1 flex-col overflow-y-auto p-4 sm:p-8">
+          <div className="m-auto flex w-full max-w-md flex-col gap-6 sm:max-w-lg sm:rounded-2xl sm:border sm:bg-card sm:p-10">
+            {/* Identity reads centred; everything actionable below shares one
+                left edge, so the card has a single alignment rather than four. */}
+            <div className="flex flex-col items-center gap-3 text-center">
+              <Avatar size="lg" className="size-14 sm:size-16">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
+                <AvatarFallback className="text-lg">
+                  {name.slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
 
-          {suggestedPrompts.length > 0 && (
-            <div className="mt-2 flex w-full max-w-xs flex-col gap-1.5">
-              {suggestedPrompts.map((prompt, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  // Sends the prompt rather than merely opening an empty
-                  // composer — a suggested question the visitor then has to
-                  // retype is not a suggestion.
-                  onClick={() => ask(prompt)}
-                  className="cursor-pointer rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  {prompt}
-                </button>
-              ))}
+              <div className="flex flex-col gap-1.5">
+                <h1 className="text-base leading-snug font-semibold text-balance sm:text-lg">
+                  {greeting ?? name}
+                </h1>
+                {description && (
+                  <p className="text-sm leading-relaxed text-pretty text-muted-foreground">
+                    {description}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
 
-          <Button
-            type="button"
-            variant={suggestedPrompts.length > 0 ? "ghost" : "default"}
-            className="mt-2 gap-2"
-            onClick={() => setView("chat")}
-          >
-            <MessageCircle className="size-4" />
-            Ask your own question
-          </Button>
+            <div className="flex flex-col gap-2">
+              {suggestedPrompts.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {suggestedPrompts.map((prompt, index) => (
+                    <li key={index}>
+                      <button
+                        type="button"
+                        onClick={() => ask(prompt)}
+                        className="w-full cursor-pointer rounded-lg border px-3.5 py-2.5 text-left text-sm leading-snug transition-colors hover:border-foreground/20 hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                      >
+                        {prompt}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Full width, matching the prompts above it — a centred pill
+                  under a stack of full-width rows is what made this column
+                  read as unaligned. */}
+              <Button
+                type="button"
+                variant={suggestedPrompts.length > 0 ? "ghost" : "default"}
+                className="h-10 w-full justify-center gap-2"
+                onClick={() => setView("chat")}
+              >
+                <MessageCircle className="size-4" />
+                Ask your own question
+              </Button>
+            </div>
+          </div>
         </div>
         <PoweredByRetriva />
       </div>
@@ -176,16 +276,25 @@ export function PublicChat({
   return (
     <div className="flex h-dvh flex-col bg-background">
       <header className="border-b px-4 py-3">
-        <p className="text-sm font-medium">{name}</p>
-        <p className="text-xs text-muted-foreground">
-          Answers come from this knowledge base, with the source shown.
-        </p>
+        <div className="mx-auto flex max-w-3xl items-center gap-2.5">
+          <Avatar className="size-7 shrink-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
+            <AvatarFallback className="text-xs">{name.slice(0, 1).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{name}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              Answers come from this knowledge base, with the source shown.
+            </p>
+          </div>
+          {embedded && <CloseButton />}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-            <p className="max-w-sm text-sm text-muted-foreground">
+            <p className="max-w-sm text-sm text-muted-foreground sm:text-base">
               {greeting ?? `Ask anything about ${name}.`}
             </p>
           </div>
@@ -199,43 +308,46 @@ export function PublicChat({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t p-3">
-        <div className="flex-1">
-          <Textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                handleSubmit(event);
-              }
-            }}
-            placeholder="Ask a question…"
-            rows={1}
-            maxLength={MAX_MESSAGE_LENGTH}
-            aria-label="Ask a question"
-            className="max-h-32 min-h-9 w-full resize-none"
-          />
-          {showCounter && (
-            <p className="mt-1 text-right text-xs text-muted-foreground tabular-nums">
-              {input.length.toLocaleString()} / {MAX_MESSAGE_LENGTH.toLocaleString()}
-            </p>
+      <form onSubmit={handleSubmit} className="border-t p-3">
+        <div className="mx-auto flex max-w-3xl items-end gap-2">
+          <div className="flex-1">
+            <Textarea
+              ref={composerRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleSubmit(event);
+                }
+              }}
+              placeholder="Ask a question…"
+              rows={1}
+              maxLength={MAX_MESSAGE_LENGTH}
+              aria-label="Ask a question"
+              className="max-h-32 min-h-9 w-full resize-none"
+            />
+            {showCounter && (
+              <p className="mt-1 text-right text-xs text-muted-foreground tabular-nums">
+                {input.length.toLocaleString()} / {MAX_MESSAGE_LENGTH.toLocaleString()}
+              </p>
+            )}
+          </div>
+          {streaming ? (
+            <Button type="button" size="icon" variant="outline" onClick={abort} aria-label="Stop">
+              <Square className="size-3.5 fill-current" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!visitorId || input.trim().length === 0}
+              aria-label="Send"
+            >
+              <ArrowUp className="size-4" />
+            </Button>
           )}
         </div>
-        {streaming ? (
-          <Button type="button" size="icon" variant="outline" onClick={abort} aria-label="Stop">
-            <Square className="size-3.5 fill-current" />
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!visitorId || input.trim().length === 0}
-            aria-label="Send"
-          >
-            <ArrowUp className="size-4" />
-          </Button>
-        )}
       </form>
       <PoweredByRetriva />
 

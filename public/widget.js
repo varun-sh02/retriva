@@ -33,8 +33,17 @@
   // points at localhost, where it resolves to the visitor's own machine and
   // the widget simply never loads. Nothing in the browser reports that as an
   // error, so say it plainly rather than leaving a silent dead widget.
+  //
+  // Scoped to a page served over http(s) with a real hostname: a file:// page
+  // has an empty hostname, and a dev server on another port is still
+  // localhost — both are legitimate ways to try the widget locally, and
+  // neither should be refused.
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/i;
-  if (LOCAL.test(new URL(origin).hostname) && !LOCAL.test(window.location.hostname)) {
+  var pageIsRemote =
+    /^https?:$/.test(window.location.protocol) &&
+    window.location.hostname &&
+    !LOCAL.test(window.location.hostname);
+  if (LOCAL.test(new URL(origin).hostname) && pageIsRemote) {
     console.error(
       "[retriva] this embed snippet points at " +
         origin +
@@ -103,9 +112,27 @@
     }
   }
 
+  function close() {
+    if (frame.classList.contains("retriva-open")) toggle();
+  }
+
   launcher.addEventListener("click", toggle);
+
+  // Only fires while focus is on the host page. Once the visitor is typing in
+  // the chat, the keystroke belongs to the iframe's document and never reaches
+  // here — which is why the frame sends an explicit close signal too.
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && frame.classList.contains("retriva-open")) toggle();
+    if (event.key === "Escape") close();
+  });
+
+  // The panel's own close button. The iframe cannot hide itself, so it asks.
+  // Origin is checked before acting: any page on the internet can postMessage
+  // to this window, and only Retriva's own frame may drive the widget.
+  window.addEventListener("message", function (event) {
+    if (event.origin !== origin) return;
+    if (event.source !== frame.contentWindow) return;
+    if (!event.data || event.data.type !== "retriva:close") return;
+    close();
   });
 
   root.appendChild(style);
