@@ -22,18 +22,20 @@ const EXTENSION_MIME_FALLBACK: Record<string, string> = {
   txt: "text/plain",
 };
 
-// Contextual copy tied to the real stage (docs/rag-pipeline.md §25) rather
-// than a generic "Processing…" spinner.
+// Contextual copy tied to the real stage (docs/rag-pipeline.md §25, and the
+// canonical mapping in docs/product-language.md §2) rather than a generic
+// "Processing…" spinner. "Indexing knowledge" was replaced: `index` is one of
+// the machine words banned from the interface.
 const STAGE_LABELS: Record<string, string> = {
-  PENDING: "Reading document…",
-  EXTRACTING: "Reading document…",
-  CHUNKING: "Structuring content…",
-  EMBEDDING: "Indexing knowledge…",
-  INDEXING: "Indexing knowledge…",
+  PENDING: "Reading…",
+  EXTRACTING: "Reading…",
+  CHUNKING: "Organizing…",
+  EMBEDDING: "Making searchable…",
+  INDEXING: "Making searchable…",
 };
 
 function stageLabel(stage?: string | null): string {
-  return (stage && STAGE_LABELS[stage]) || "Processing…";
+  return (stage && STAGE_LABELS[stage]) || "Reading…";
 }
 
 function resolveMimeType(file: File): string {
@@ -117,7 +119,7 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
 
       if (!confirmResponse.ok) {
         update({ status: "error", errorMessage: confirmBody.error?.message });
-        toast.error(confirmBody.error?.message ?? "This file couldn't be processed.");
+        toast.error(confirmBody.error?.message ?? "We couldn't read this file.");
         return;
       }
 
@@ -128,7 +130,7 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
       router.refresh();
     } catch {
       update({ status: "error", errorMessage: "Upload failed." });
-      toast.error("Upload failed.");
+      toast.error("We couldn't upload this file. Check your connection and try again.");
     }
   }
 
@@ -145,7 +147,7 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
 
       if (!response.ok) {
         update({ status: "error", errorMessage: body.error?.message });
-        toast.error(body.error?.message ?? "This file couldn't be processed.");
+        toast.error(body.error?.message ?? "We couldn't finish reading this file.");
         return;
       }
 
@@ -153,8 +155,8 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
 
       if (body.done) {
         if (body.status === "FAILED") {
-          update({ status: "error", errorMessage: body.error ?? "Processing failed." });
-          toast.error(body.error ?? "This file couldn't be processed.");
+          update({ status: "error", errorMessage: body.error ?? "We couldn't finish reading this file." });
+          toast.error("We couldn't finish reading this file. Your original file is safe — try again from the list below.");
         } else {
           update({ status: "done" });
         }
@@ -162,7 +164,7 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
       }
     }
 
-    update({ status: "error", errorMessage: "Processing is taking longer than expected." });
+    update({ status: "error", errorMessage: "This is taking longer than expected. Your file is safe — try again from the list below." });
   }
 
   function handleFiles(files: FileList | null) {
@@ -177,9 +179,16 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
       <div
         role="button"
         tabIndex={0}
+        aria-label="Add sources"
+        aria-describedby="dropzone-formats"
         onClick={() => inputRef.current?.click()}
         onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") inputRef.current?.click();
+          if (event.key === "Enter" || event.key === " ") {
+            // Space on a custom role="button" scrolls the page unless the
+            // default is suppressed (docs/ux-principles.md Part IV, #6).
+            event.preventDefault();
+            inputRef.current?.click();
+          }
         }}
         onDragOver={(event: DragEvent) => {
           event.preventDefault();
@@ -191,13 +200,15 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
           setDragOver(false);
           handleFiles(event.dataTransfer.files);
         }}
-        className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors ${
-          dragOver ? "border-foreground bg-accent" : "border-border"
+        className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${
+          dragOver ? "border-brand bg-tint" : "border-border"
         }`}
       >
-        <Upload className="size-6 text-muted-foreground" />
+        <Upload className="size-6 text-muted-foreground" aria-hidden="true" />
         <p className="text-sm font-medium">Drop files here, or click to browse</p>
-        <p className="text-xs text-muted-foreground">PDF · DOCX · TXT · Markdown · Images · Video</p>
+        <p id="dropzone-formats" className="text-xs text-muted-foreground">
+          Documents, images, and recordings — PDF, DOCX, TXT, Markdown, PNG, JPEG, MP4
+        </p>
         <input
           ref={inputRef}
           type="file"
@@ -213,12 +224,12 @@ export function UploadDropzone({ knowledgeBaseId }: { knowledgeBaseId: string })
             <li key={upload.id} className="flex flex-col gap-1 text-sm">
               <div className="flex items-center justify-between">
                 <span className="truncate">{upload.name}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {upload.status === "uploading" && `${Math.round(upload.progress * 100)}%`}
-                  {upload.status === "confirming" && "Confirming…"}
+                  {upload.status === "confirming" && "Checking file…"}
                   {upload.status === "processing" && stageLabel(upload.stage)}
                   {upload.status === "done" && "Ready"}
-                  {upload.status === "error" && "Failed"}
+                  {upload.status === "error" && "Couldn't process"}
                 </span>
               </div>
               {(upload.status === "uploading" ||

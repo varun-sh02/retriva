@@ -11,11 +11,11 @@ export function MarketingNav() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-          <a href="#features" className="transition-colors hover:text-foreground">
-            Features
-          </a>
           <a href="#how-it-works" className="transition-colors hover:text-foreground">
             How it works
+          </a>
+          <a href="#evidence" className="transition-colors hover:text-foreground">
+            Evidence
           </a>
         </nav>
 

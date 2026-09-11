@@ -28,6 +28,21 @@
   // repeat it, and can never point the frame at a different host than the one
   // that served the loader.
   var origin = new URL(script.src, window.location.href).origin;
+
+  // A snippet copied out of a local dev session and pasted onto a real site
+  // points at localhost, where it resolves to the visitor's own machine and
+  // the widget simply never loads. Nothing in the browser reports that as an
+  // error, so say it plainly rather than leaving a silent dead widget.
+  var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/i;
+  if (LOCAL.test(new URL(origin).hostname) && !LOCAL.test(window.location.hostname)) {
+    console.error(
+      "[retriva] this embed snippet points at " +
+        origin +
+        ", which is only reachable on the machine that served it. Re-copy the snippet from " +
+        "your deployed Retriva instance (Knowledge base -> Share) and replace this script tag.",
+    );
+    return;
+  }
   var label = script.getAttribute("data-retriva-label") || "Ask a question";
   var accent = script.getAttribute("data-retriva-accent") || "#E08A1E";
   var side = script.getAttribute("data-retriva-side") === "left" ? "left" : "right";

@@ -9,9 +9,16 @@ export default async function NewKnowledgeBaseChatPage({
   params: Promise<{ kbId: string }>;
 }) {
   const { kbId } = await params;
-  const { knowledgeBase, conversations } = await loadChatPageContext(kbId);
+  const { knowledgeBase, conversations, suggestions, readyCount, processingCount } =
+    await loadChatPageContext(kbId);
 
   return (
-    <ChatPageLayout knowledgeBaseId={knowledgeBase.id} conversations={conversations} />
+    <ChatPageLayout
+      knowledgeBaseId={knowledgeBase.id}
+      conversations={conversations}
+      suggestions={suggestions}
+      readyCount={readyCount}
+      processingCount={processingCount}
+    />
   );
 }

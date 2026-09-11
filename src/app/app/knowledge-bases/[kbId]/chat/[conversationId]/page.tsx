@@ -11,7 +11,15 @@ export default async function ConversationChatPage({
   params: Promise<{ kbId: string; conversationId: string }>;
 }) {
   const { kbId, conversationId } = await params;
-  const { workspaceId, supabase, knowledgeBase, conversations } = await loadChatPageContext(kbId);
+  const {
+    workspaceId,
+    supabase,
+    knowledgeBase,
+    conversations,
+    suggestions,
+    readyCount,
+    processingCount,
+  } = await loadChatPageContext(kbId);
 
   let conversation;
   try {
@@ -30,6 +38,9 @@ export default async function ConversationChatPage({
       conversations={conversations}
       activeConversationId={conversation.id}
       initialMessages={initialMessages}
+      suggestions={suggestions}
+      readyCount={readyCount}
+      processingCount={processingCount}
     />
   );
 }

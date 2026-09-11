@@ -1,7 +1,10 @@
 import "server-only";
 
-export const INSUFFICIENT_EVIDENCE_MESSAGE =
-  "I couldn't find enough evidence in this knowledge base to answer that confidently.";
+// Defined in a client-safe module because the chat UI must recognise this
+// exact string to render the refusal as a deliberate state rather than an
+// error. Re-exported here so every existing server-side import is unchanged.
+export { INSUFFICIENT_EVIDENCE_MESSAGE } from "./refusal";
+import { INSUFFICIENT_EVIDENCE_MESSAGE } from "./refusal";
 
 /**
  * docs/rag-pipeline.md §5, with rules 13/14 added for prompt-injection defense

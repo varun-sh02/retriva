@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
@@ -13,6 +13,7 @@ export function CommandMenu({
   knowledgeBases: KnowledgeBaseOption[];
 }) {
   const router = useRouter();
+  const listId = useId();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -55,12 +56,26 @@ export function CommandMenu({
     router.push(`/app/knowledge-bases/${kb.id}`);
   }
 
+  const activeOptionId = filtered[activeIndex] ? `${listId}-${filtered[activeIndex].id}` : undefined;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="gap-0 overflow-hidden p-0" showCloseButton={false}>
         <DialogTitle className="sr-only">Switch knowledge base</DialogTitle>
+        {/*
+          A combobox that owns a listbox, rather than a bare input next to one.
+          Selection is tracked with aria-activedescendant so focus stays in the
+          input while the highlight moves — the pattern a screen reader expects
+          from a command palette (docs/ux-principles.md Part IV, #5).
+        */}
         <Input
           autoFocus
+          role="combobox"
+          aria-expanded="true"
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={activeOptionId}
+          aria-label="Jump to a knowledge base"
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
           placeholder="Jump to a knowledge base…"
@@ -73,33 +88,40 @@ export function CommandMenu({
               event.preventDefault();
               setActiveIndex((i) => Math.max(i - 1, 0));
             } else if (event.key === "Enter" && filtered[activeIndex]) {
+              event.preventDefault();
               select(filtered[activeIndex]);
             }
           }}
         />
-        <ul role="listbox" className="max-h-72 overflow-y-auto p-1">
-          {filtered.length === 0 && (
-            <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+        {/*
+          role="listbox" must contain role="option" directly — the previous <ul>/<li>
+          wrappers broke that required relationship. A plain div of option divs
+          keeps the semantics valid; keyboard handling lives on the input above,
+          so these need no tabindex of their own.
+        */}
+        <div id={listId} role="listbox" aria-label="Knowledge bases" className="max-h-72 overflow-y-auto p-1">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
               No knowledge bases match.
-            </li>
-          )}
-          {filtered.map((kb, index) => (
-            <li key={kb.id}>
-              <button
-                type="button"
+            </p>
+          ) : (
+            filtered.map((kb, index) => (
+              <div
+                key={kb.id}
+                id={`${listId}-${kb.id}`}
                 role="option"
                 aria-selected={index === activeIndex}
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => select(kb)}
-                className={`w-full rounded-md px-3 py-2 text-left text-sm ${
+                className={`cursor-pointer truncate rounded-md px-3 py-2 text-left text-sm ${
                   index === activeIndex ? "bg-accent text-accent-foreground" : ""
                 }`}
               >
                 {kb.name}
-              </button>
-            </li>
-          ))}
-        </ul>
+              </div>
+            ))
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

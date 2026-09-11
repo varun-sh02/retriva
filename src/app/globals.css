@@ -149,4 +149,40 @@
   html {
     @apply font-sans;
     }
+
+  /*
+   * Coordinates — page numbers, timestamps, counts, sizes, percentages — are
+   * set in IBM Plex Mono with tabular figures so a number that updates in
+   * place (an upload percentage, a passage count, an evidence position) stops
+   * shifting the text around it (docs/design-system.md §3).
+   */
+  .font-mono, .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    }
+
+  /*
+   * A page must never scroll sideways. Long filenames, evidence rails and
+   * excerpts all push width, and a horizontal scrollbar on the whole document
+   * is always a bug rather than a layout choice.
+   */
+  body {
+    overflow-x: hidden;
+    }
+}
+
+/*
+ * Motion is for explaining state and relationships, never decoration, so all
+ * of it collapses to the final state when the reader has asked for less
+ * (docs/design-system.md §6). This backstops the per-component
+ * motion-reduce: utilities rather than replacing them.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    }
 }

@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 export function UploadIllustration({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 240 180" className={cn("w-full", className)} role="img" aria-hidden="true">
+    <svg viewBox="0 0 240 180" className={cn("w-full", className)} aria-hidden="true" focusable="false">
       <rect width="240" height="180" rx="16" className="fill-muted" />
 
       <rect

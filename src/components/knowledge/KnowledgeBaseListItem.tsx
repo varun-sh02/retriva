@@ -44,7 +44,7 @@ export function KnowledgeBaseListItem({
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        toast.error(body?.error?.message ?? "Failed to delete knowledge base.");
+        toast.error(body?.error?.message ?? "We couldn't delete this knowledge base.");
         return;
       }
 
@@ -66,7 +66,10 @@ export function KnowledgeBaseListItem({
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 opacity-0 group-hover:opacity-100"
+              // focus-visible is mandatory alongside group-hover: without it a
+              // keyboard user can focus a button they cannot see
+              // (docs/ux-principles.md Part IV, #2).
+              className="size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
               aria-label={`${knowledgeBase.name} actions`}
             >
               <MoreHorizontal className="size-4" />

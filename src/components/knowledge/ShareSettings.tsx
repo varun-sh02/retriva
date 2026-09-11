@@ -35,9 +35,20 @@ type ShareState = {
  */
 export function ShareSettings({
   knowledgeBaseId,
+  appOrigin,
   initial,
 }: {
   knowledgeBaseId: string;
+  /**
+   * The origin this page was actually requested from, resolved server-side
+   * (src/lib/config/app-url.ts). Passed in rather than read from
+   * `window.location` so the snippet is right in the server-rendered HTML —
+   * the previous `typeof window !== "undefined"` guard rendered nothing on
+   * the server and only filled in after hydration — and right on a custom
+   * domain, on *.vercel.app, and on every preview deployment, none of which a
+   * build-time NEXT_PUBLIC_APP_URL can tell apart.
+   */
+  appOrigin: string;
   initial: ShareState;
 }) {
   const [state, setState] = useState<ShareState>(initial);
@@ -46,7 +57,7 @@ export function ShareSettings({
   const [prompts, setPrompts] = useState<string[]>(initial.suggestedPrompts);
   const [busy, setBusy] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"snippet" | "link" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -135,22 +146,23 @@ export function ShareSettings({
     }
   }
 
-  // Resolved in the browser so the snippet always names the origin the owner
-  // is actually looking at, rather than a build-time guess that would be
-  // wrong on every preview deployment.
-  const snippet =
-    state.shareToken && typeof window !== "undefined"
-      ? `<script src="${window.location.origin}/widget.js" data-retriva-token="${state.shareToken}"></script>`
-      : null;
+  const snippet = state.shareToken
+    ? `<script src="${appOrigin}/widget.js" data-retriva-token="${state.shareToken}"></script>`
+    : null;
 
-  async function copy() {
-    if (!snippet) return;
+  // The same chat as a plain page, for sharing in a message or a doc where a
+  // script tag is no use.
+  const shareLink = state.shareToken
+    ? `${appOrigin}/embed/${encodeURIComponent(state.shareToken)}`
+    : null;
+
+  async function copyText(value: string, which: "snippet" | "link") {
     try {
-      await navigator.clipboard.writeText(snippet);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(value);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 1500);
     } catch {
-      setError("Copy failed — select the snippet and copy it manually.");
+      setError("Copy failed — select the text and copy it manually.");
     }
   }
 
@@ -179,15 +191,41 @@ export function ShareSettings({
         <CardContent className="flex flex-col gap-3">
           {error && <p className="text-xs text-destructive">{error}</p>}
 
-          {state.enabled && snippet && (
-            <div className="flex flex-col gap-2">
+          {state.enabled && snippet && shareLink && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Direct link</Label>
+                <div className="flex items-center gap-2">
+                  <code className="min-w-0 flex-1 truncate rounded border bg-muted px-2 py-1.5 font-mono text-[11px]">
+                    {shareLink}
+                  </code>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void copyText(shareLink, "link")}
+                  >
+                    {copied === "link" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                    {copied === "link" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+
+              <Label className="text-xs text-muted-foreground">Embed snippet</Label>
               <pre className="overflow-x-auto rounded border bg-muted p-2 text-[11px] leading-relaxed">
                 {snippet}
               </pre>
               <div className="flex gap-2">
-                <Button type="button" size="sm" variant="outline" onClick={copy} disabled={busy}>
-                  {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                  {copied ? "Copied" : "Copy snippet"}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void copyText(snippet, "snippet")}
+                  disabled={busy}
+                >
+                  {copied === "snippet" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  {copied === "snippet" ? "Copied" : "Copy snippet"}
                 </Button>
                 <Button
                   type="button"

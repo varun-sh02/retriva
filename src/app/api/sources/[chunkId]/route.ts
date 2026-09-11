@@ -50,12 +50,25 @@ export async function GET(_request: Request, { params }: RouteContext) {
       );
     }
 
-    const { data: signed } = await supabase.storage
-      .from("documents")
-      .createSignedUrl(document.storage_path, SIGNED_URL_EXPIRY_SECONDS);
-
+    // A DOCX/TXT/MD chunk used to fall through to "pdf" and offer an "Open
+    // document" link to a file the browser downloads rather than renders.
+    // Text sources have no viewable asset — their excerpt (plus section path)
+    // IS the evidence, so they get their own kind and no link.
     const assetKind =
-      chunk.content_type === "image" ? "image" : chunk.content_type === "video" ? "video" : "pdf";
+      chunk.content_type === "image"
+        ? "image"
+        : chunk.content_type === "video"
+          ? "video"
+          : chunk.content_type === "pdf"
+            ? "pdf"
+            : "text";
+
+    const { data: signed } =
+      assetKind === "text"
+        ? { data: null }
+        : await supabase.storage
+            .from("documents")
+            .createSignedUrl(document.storage_path, SIGNED_URL_EXPIRY_SECONDS);
 
     return Response.json({
       chunkId: chunk.id,

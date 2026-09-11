@@ -1,8 +1,9 @@
 import { ShareSettings } from "@/components/knowledge/ShareSettings";
 import { requireKnowledgeBase } from "@/lib/auth/ownership";
 import { requireSession } from "@/lib/auth/session";
+import { requestOrigin } from "@/lib/config/app-url";
 
-export default async function KnowledgeBaseWidgetPage({
+export default async function KnowledgeBaseSharePage({
   params,
 }: {
   params: Promise<{ kbId: string }>;
@@ -31,10 +32,15 @@ export default async function KnowledgeBaseWidgetPage({
     ? supabase.storage.from("avatars").getPublicUrl(share.public_avatar_path).data.publicUrl
     : null;
 
+  // Resolved from the request, not from a build-time env var, so the snippet
+  // names this deployment's real origin (src/lib/config/app-url.ts).
+  const appOrigin = await requestOrigin();
+
   return (
     <div className="mx-auto h-full max-w-2xl overflow-y-auto p-6">
       <ShareSettings
         knowledgeBaseId={knowledgeBase.id}
+        appOrigin={appOrigin}
         initial={{
           enabled: share?.public_enabled ?? false,
           shareToken: share?.public_enabled ? (share.public_share_token ?? null) : null,

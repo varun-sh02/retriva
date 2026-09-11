@@ -148,15 +148,21 @@ export function LiveDemo() {
 
   const showUserMessage = stage !== "idle" && stage !== "typing";
   const phaseLabel =
-    stage === "searching" ? "Searching your knowledge…" : stage === "synthesizing" ? "Synthesizing evidence…" : null;
+    stage === "searching" ? "Searching your knowledge…" : stage === "synthesizing" ? "Reading the evidence…" : null;
 
   return (
     <div ref={ref} className="overflow-hidden rounded-2xl border bg-card">
       <div className="flex h-11 shrink-0 items-center justify-between border-b px-4">
         <span className="text-sm font-medium text-muted-foreground">HR Handbook</span>
-        <Button variant="ghost" size="icon-sm" aria-label="Replay demo" onClick={replay}>
-          <RotateCcw className="size-3.5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* A mock must never read as live output (docs/ux-principles.md §2). */}
+          <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+            Example
+          </span>
+          <Button variant="ghost" size="icon-sm" aria-label="Replay demo" onClick={replay}>
+            <RotateCcw className="size-3.5" />
+          </Button>
+        </div>
       </div>
 
       <div className="min-h-[220px] p-4">
@@ -205,7 +211,7 @@ export function LiveDemo() {
             <SheetTitle>{openCitation?.documentName}</SheetTitle>
           </SheetHeader>
           <div className="flex flex-col gap-4 px-4 pb-4">
-            <p className="text-sm text-muted-foreground">Page {openCitation?.pageNumber}</p>
+            <p className="font-mono text-sm text-muted-foreground tabular-nums">Page {openCitation?.pageNumber}</p>
             <blockquote className="rounded-md border-l-2 border-brand bg-tint py-2 pl-3 text-sm whitespace-pre-wrap text-tint-foreground">
               {openCitation?.excerpt}
             </blockquote>

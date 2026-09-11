@@ -1,24 +1,15 @@
-import { ChatPageLayout } from "@/components/chat/ChatPageLayout";
-import { getMostRecentConversation, listMessages } from "@/lib/chat/list-messages";
-import { loadChatPageContext } from "@/lib/chat/page-context";
+import { redirect } from "next/navigation";
 
-export default async function KnowledgeBaseChatPage({
+/**
+ * Ask moved to the knowledge base root (docs/ux-principles.md Part II). This
+ * redirect keeps existing links and bookmarks working; /chat/new and
+ * /chat/[conversationId] are unaffected and remain the real chat routes.
+ */
+export default async function LegacyChatPage({
   params,
 }: {
   params: Promise<{ kbId: string }>;
 }) {
   const { kbId } = await params;
-  const { supabase, knowledgeBase, conversations } = await loadChatPageContext(kbId);
-
-  const conversation = await getMostRecentConversation(supabase, knowledgeBase.id);
-  const initialMessages = conversation ? await listMessages(supabase, conversation.id) : [];
-
-  return (
-    <ChatPageLayout
-      knowledgeBaseId={knowledgeBase.id}
-      conversations={conversations}
-      activeConversationId={conversation?.id}
-      initialMessages={initialMessages}
-    />
-  );
+  redirect(`/app/knowledge-bases/${kbId}`);
 }

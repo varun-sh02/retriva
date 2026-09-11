@@ -8,11 +8,17 @@ export function ChatPageLayout({
   conversations,
   activeConversationId,
   initialMessages,
+  suggestions,
+  readyCount,
+  processingCount,
 }: {
   knowledgeBaseId: string;
   conversations: ConversationSummary[];
   activeConversationId?: string;
   initialMessages?: ChatMessage[];
+  suggestions: string[];
+  readyCount: number;
+  processingCount: number;
 }) {
   return (
     <div className="relative flex h-full">
@@ -30,6 +36,9 @@ export function ChatPageLayout({
           knowledgeBaseId={knowledgeBaseId}
           initialConversationId={activeConversationId}
           initialMessages={initialMessages}
+          suggestions={suggestions}
+          readyCount={readyCount}
+          processingCount={processingCount}
         />
       </div>
     </div>

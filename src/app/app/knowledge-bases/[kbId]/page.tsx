@@ -1,30 +1,35 @@
-import { DocumentList } from "@/components/knowledge/DocumentList";
-import { UploadDropzone } from "@/components/knowledge/UploadDropzone";
-import { requireKnowledgeBase } from "@/lib/auth/ownership";
-import { requireSession } from "@/lib/auth/session";
-import { listDocuments } from "@/lib/documents/list-documents";
+import { ChatPageLayout } from "@/components/chat/ChatPageLayout";
+import { getMostRecentConversation, listMessages } from "@/lib/chat/list-messages";
+import { loadChatPageContext } from "@/lib/chat/page-context";
 
-export default async function KnowledgeBaseDocumentsPage({
+/**
+ * A knowledge base opens on Ask, not on file management — asking is the
+ * product's purpose and the reason the user came back (docs/ux-principles.md
+ * Part II). A knowledge base with no ready sources renders the empty state
+ * inside ChatShell, which points at Sources, so a first-time user is still
+ * routed correctly.
+ */
+export default async function KnowledgeBaseAskPage({
   params,
 }: {
   params: Promise<{ kbId: string }>;
 }) {
   const { kbId } = await params;
-  const { workspaceId, supabase } = await requireSession();
+  const { supabase, knowledgeBase, conversations, suggestions, readyCount, processingCount } =
+    await loadChatPageContext(kbId);
 
-  // Layout.tsx (a parent segment) already calls requireKnowledgeBase and
-  // would 404 before this page renders on a non-owned id — this call
-  // re-verifies independently rather than trusting that upstream check,
-  // consistent with every other page/route in the app.
-  const knowledgeBase = await requireKnowledgeBase(supabase, workspaceId, kbId);
-  const documents = await listDocuments(supabase, knowledgeBase.id);
+  const conversation = await getMostRecentConversation(supabase, knowledgeBase.id);
+  const initialMessages = conversation ? await listMessages(supabase, conversation.id) : [];
 
   return (
-    <div className="mx-auto h-full max-w-2xl overflow-y-auto p-6">
-      <div className="flex flex-col gap-6">
-        <UploadDropzone knowledgeBaseId={knowledgeBase.id} />
-        <DocumentList documents={documents} />
-      </div>
-    </div>
+    <ChatPageLayout
+      knowledgeBaseId={knowledgeBase.id}
+      conversations={conversations}
+      activeConversationId={conversation?.id}
+      initialMessages={initialMessages}
+      suggestions={suggestions}
+      readyCount={readyCount}
+      processingCount={processingCount}
+    />
   );
 }

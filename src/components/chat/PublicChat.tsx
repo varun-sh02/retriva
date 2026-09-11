@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowUp, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { ArrowUp, MessageCircle, Square } from "lucide-react";
+import { useCallback, useState } from "react";
+import type { ChatCitation } from "@/hooks/useChatStream";
 import { useChatStream } from "@/hooks/useChatStream";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { LogoMark } from "@/components/brand/Logo";
 import { MAX_MESSAGE_LENGTH } from "@/lib/validation/chat";
 import { MessageList } from "./MessageList";
+import { EvidenceDrawer } from "./EvidenceDrawer";
 
 /**
  * Identifies a returning visitor to themselves only. It is not an identity
@@ -78,18 +80,46 @@ export function PublicChat({
   // there is no restore-last-view state across loads, matching how a
   // visitor's conversation itself isn't restored across a fresh load either.
   const [view, setView] = useState<"intro" | "chat">("intro");
-  const { messages, phase, sendMessage } = useChatStream({
+  const { messages, phase, sendMessage, abort } = useChatStream({
     endpoint: "/api/public/chat",
     requestFields: { shareToken, visitorId: visitorId ?? undefined },
   });
   const [input, setInput] = useState("");
+  const [openCitation, setOpenCitation] = useState<ChatCitation | null>(null);
   const showCounter = input.length > MAX_MESSAGE_LENGTH * 0.8;
+  const streaming = phase !== "idle" || messages[messages.length - 1]?.streaming === true;
+
+  /**
+   * A visitor has no session, so evidence is fetched through the share token
+   * instead — and comes back without an asset URL. The owner shared a chat,
+   * not their file library (src/app/api/public/sources/route.ts).
+   */
+  const loadSource = useCallback(
+    (chunkId: string) =>
+      fetch("/api/public/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shareToken, chunkId }),
+      }),
+    [shareToken],
+  );
+
+  const activeEvidenceSet =
+    messages.find((message) =>
+      message.citations.some((citation) => citation.chunkId === openCitation?.chunkId),
+    )?.citations ?? [];
+
+  function ask(question: string) {
+    if (!visitorId) return;
+    setView("chat");
+    void sendMessage(question);
+  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     // visitorId lands on the first effect tick; sending before it exists
     // would fail validation server-side.
-    if (phase !== "idle" || !visitorId) return;
+    if (streaming || !visitorId) return;
     void sendMessage(input);
     setInput("");
   }
@@ -99,7 +129,7 @@ export function PublicChat({
       <div className="flex h-dvh flex-col bg-background">
         <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-6 text-center">
           <Avatar size="lg" className="size-20">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+            {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
             <AvatarFallback className="text-lg">{name.slice(0, 1).toUpperCase()}</AvatarFallback>
           </Avatar>
 
@@ -116,8 +146,11 @@ export function PublicChat({
                 <button
                   key={index}
                   type="button"
-                  onClick={() => setView("chat")}
-                  className="rounded-lg border px-3 py-2 text-left text-sm hover:bg-accent"
+                  // Sends the prompt rather than merely opening an empty
+                  // composer — a suggested question the visitor then has to
+                  // retype is not a suggestion.
+                  onClick={() => ask(prompt)}
+                  className="cursor-pointer rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   {prompt}
                 </button>
@@ -132,7 +165,7 @@ export function PublicChat({
             onClick={() => setView("chat")}
           >
             <MessageCircle className="size-4" />
-            Go to chat
+            Ask your own question
           </Button>
         </div>
         <PoweredByRetriva />
@@ -144,7 +177,9 @@ export function PublicChat({
     <div className="flex h-dvh flex-col bg-background">
       <header className="border-b px-4 py-3">
         <p className="text-sm font-medium">{name}</p>
-        <p className="text-xs text-muted-foreground">Answers come from this knowledge base.</p>
+        <p className="text-xs text-muted-foreground">
+          Answers come from this knowledge base, with the source shown.
+        </p>
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -155,7 +190,12 @@ export function PublicChat({
             </p>
           </div>
         ) : (
-          <MessageList messages={messages} phase={phase} />
+          <MessageList
+            messages={messages}
+            phase={phase}
+            activeChunkId={openCitation?.chunkId}
+            onOpenCitation={setOpenCitation}
+          />
         )}
       </div>
 
@@ -173,24 +213,39 @@ export function PublicChat({
             placeholder="Ask a question…"
             rows={1}
             maxLength={MAX_MESSAGE_LENGTH}
+            aria-label="Ask a question"
             className="max-h-32 min-h-9 w-full resize-none"
           />
           {showCounter && (
-            <p className="mt-1 text-right text-xs text-muted-foreground">
+            <p className="mt-1 text-right text-xs text-muted-foreground tabular-nums">
               {input.length.toLocaleString()} / {MAX_MESSAGE_LENGTH.toLocaleString()}
             </p>
           )}
         </div>
-        <Button
-          type="submit"
-          size="icon"
-          disabled={phase !== "idle" || !visitorId || input.trim().length === 0}
-          aria-label="Send"
-        >
-          <ArrowUp className="size-4" />
-        </Button>
+        {streaming ? (
+          <Button type="button" size="icon" variant="outline" onClick={abort} aria-label="Stop">
+            <Square className="size-3.5 fill-current" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!visitorId || input.trim().length === 0}
+            aria-label="Send"
+          >
+            <ArrowUp className="size-4" />
+          </Button>
+        )}
       </form>
       <PoweredByRetriva />
+
+      <EvidenceDrawer
+        citation={openCitation}
+        citations={activeEvidenceSet}
+        onSelect={setOpenCitation}
+        onClose={() => setOpenCitation(null)}
+        endpoint={loadSource}
+      />
     </div>
   );
 }
